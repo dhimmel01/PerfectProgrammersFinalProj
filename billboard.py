@@ -1,0 +1,91 @@
+import requests
+import pandas as pd
+import sqlite3
+
+def create_or_connect_database(db_file):
+    conn = sqlite3.connect(db_file)
+    return conn
+
+def create_billboard_table(conn):
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS billboard_hot_100 (
+            rank INTEGER,
+            song TEXT,
+            artist TEXT,
+            last_week INTEGER,
+            peak_position INTEGER,
+            weeks_on_chart INTEGER,
+            date TEXT
+        );
+    ''')
+    conn.commit()
+
+def fetch_billboard_data(date, start_rank):
+    url = "https://billboard-api2.p.rapidapi.com/hot-100"
+    headers = {
+        "X-RapidAPI-Key": "4f2775e08emshb476776cc48055bp16752fjsn8b91ce849b8d",
+        "X-RapidAPI-Host": "billboard-api2.p.rapidapi.com"
+    }
+    end_rank = start_rank + 24
+    querystring = {"date": date, "range": f"{start_rank}-{end_rank}"}
+    
+    try:
+        response = requests.get(url, headers=headers, params=querystring)
+        response.raise_for_status()
+        return response.json()['content']
+    except requests.RequestException as e:
+        print(f"An error occurred: {e}")
+        return []
+
+def save_data_to_database(conn, data, date):
+    cursor = conn.cursor()
+    for rank, details in data.items():
+        # Using the get method of dictionary to provide default values if keys are missing
+        song = details.get('title', 'Unknown Title')
+        artist = details.get('artist', 'Unknown Artist')
+        last_week = details.get('last_week', None)  # None or appropriate default value
+        peak_position = details.get('peak_position', None)
+        weeks_on_chart = details.get('weeks_on_chart', None)
+
+        cursor.execute('''
+            INSERT INTO billboard_hot_100 (rank, song, artist, last_week, peak_position, weeks_on_chart, date)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (rank, song, artist, last_week, peak_position, weeks_on_chart, date))
+    conn.commit()
+
+def fetch_and_display_data(conn):
+    cursor = conn.cursor()
+    query = "SELECT * FROM billboard_hot_100"
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    
+    for row in rows:
+        print(row)
+
+def main():
+    db_file = 'music_data.db'
+    conn = create_or_connect_database(db_file)
+    create_billboard_table(conn)
+    
+    date = "2019-05-11"  # You can adjust this or make it dynamic as needed
+    start_rank = 1
+    total_items_fetched = 0
+
+    while total_items_fetched <= 100:
+        data = fetch_billboard_data(date, start_rank)
+        
+        if data:
+            save_data_to_database(conn, data, date)
+            print(f"Data saved to database successfully for ranks {start_rank} to {start_rank + 24}.")
+            total_items_fetched += len(data)
+            start_rank += 25  # Increment to fetch the next batch
+        else:
+            print("No more data fetched or end of data.")
+            break
+
+    fetch_and_display_data(conn)  # Optionally display data
+    conn.close()
+
+if __name__ == '__main__':
+    main()
