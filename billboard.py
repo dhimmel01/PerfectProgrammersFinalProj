@@ -63,6 +63,51 @@ def fetch_and_display_data(conn):
     for row in rows:
         print(row)
 
+
+import matplotlib.pyplot as plt
+
+
+def create_or_connect_database(db_file):
+    conn = sqlite3.connect(db_file)
+    return conn
+
+def fetch_data_for_visualization(conn):
+    """Fetch song and weeks on chart from the database for visualization, ensuring no None values."""
+    cursor = conn.cursor()
+    query = "SELECT song, weeks_on_chart FROM billboard_hot_100 WHERE weeks_on_chart IS NOT NULL ORDER BY weeks_on_chart DESC LIMIT 10"
+    cursor.execute(query)
+    data = cursor.fetchall()
+    return data
+
+def visualize_data(data):
+    """Generate a bar chart from the fetched data, handling None values."""
+    songs = [item[0] for item in data if item[1] is not None]  # Ensure no None values in weeks
+    weeks = [item[1] for item in data if item[1] is not None]  # Ensure no None values in weeks
+
+    if not weeks:  # Check if the list is empty after filtering
+        print("No valid data to display.")
+        return
+
+    plt.figure(figsize=(10, 8))
+    plt.barh(songs, weeks, color='skyblue')
+    plt.xlabel('Weeks on Chart')
+    plt.ylabel('Songs')
+    plt.title('Top 10 Songs by Weeks on Billboard Hot 100')
+    plt.gca().invert_yaxis()  # Reverse the order to have the longest on top
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
 def main():
     db_file = 'music_data.db'
     conn = create_or_connect_database(db_file)
@@ -86,6 +131,19 @@ def main():
 
     fetch_and_display_data(conn)  # Optionally display data
     conn.close()
+
+
+    db_file = 'music_data.db'
+    conn = create_or_connect_database(db_file)
+    
+    data = fetch_data_for_visualization(conn)
+    if data:
+        visualize_data(data)
+    else:
+        print("No data available for visualization.")
+
+    conn.close()
+
 
 if __name__ == '__main__':
     main()
