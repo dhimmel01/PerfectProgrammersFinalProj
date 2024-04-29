@@ -16,17 +16,16 @@ def plot_followers_vs_popularity(artists_data):
     plt.ylabel('Popularity Index')
     plt.grid(True)
 
-    # Perform linear regression
+  
     slope, intercept, r_value, p_value, std_err = linregress(artists_data['followers'], artists_data['popularity'])
     line = slope * artists_data['followers'] + intercept
 
-    # Plot the line of best fit
+
     plt.plot(artists_data['followers'], line, color='red', label=f'Fit: y = {slope:.2f}x + {intercept:.2f}')
 
-    # Disable scientific notation
     plt.ticklabel_format(style='plain')
 
-    # Show the equation of the line
+
     plt.text(0.1, 0.9, f'R-squared: {r_value**2:.2f}', transform=plt.gca().transAxes)
     plt.legend()
     plt.show()

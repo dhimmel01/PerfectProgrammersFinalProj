@@ -1,253 +1,159 @@
-# import requests
-# import pandas as pd
-# import sqlite3
-
-# def create_or_connect_database(db_file):
-#     conn = sqlite3.connect(db_file)
-#     return conn
-
-# def create_billboard_table(conn):
-#     cursor = conn.cursor()
-#     cursor.execute('''
-#         CREATE TABLE IF NOT EXISTS billboard_hot_100 (
-#             rank INTEGER,
-#             song TEXT,
-#             artist TEXT,
-#             last_week INTEGER,
-#             peak_position INTEGER,
-#             weeks_on_chart INTEGER,
-#             date TEXT
-#         );
-#     ''')
-#     conn.commit()
-
-# def fetch_billboard_data(date, start_rank):
-#     url = "https://billboard-api2.p.rapidapi.com/hot-100"
-#     headers = {
-#         "X-RapidAPI-Key": "4f2775e08emshb476776cc48055bp16752fjsn8b91ce849b8d",
-#         "X-RapidAPI-Host": "billboard-api2.p.rapidapi.com"
-#     }
-#     end_rank = start_rank + 24
-#     querystring = {"date": date, "range": f"{start_rank}-{end_rank}"}
-    
-#     try:
-#         response = requests.get(url, headers=headers, params=querystring)
-#         response.raise_for_status()
-#         return response.json()['content']
-#     except requests.RequestException as e:
-#         print(f"An error occurred: {e}")
-#         return []
-
-# def save_data_to_database(conn, data, date):
-#     cursor = conn.cursor()
-#     for rank, details in data.items():
-#         # Using the get method of dictionary to provide default values if keys are missing
-#         song = details.get('title', 'Unknown Title')
-#         artist = details.get('artist', 'Unknown Artist')
-#         last_week = details.get('last_week', None)  # None or appropriate default value
-#         peak_position = details.get('peak_position', None)
-#         weeks_on_chart = details.get('weeks_on_chart', None)
-
-#         cursor.execute('''
-#             INSERT INTO billboard_hot_100 (rank, song, artist, last_week, peak_position, weeks_on_chart, date)
-#             VALUES (?, ?, ?, ?, ?, ?, ?)
-#         ''', (rank, song, artist, last_week, peak_position, weeks_on_chart, date))
-#     conn.commit()
-
-# def fetch_and_display_data(conn):
-#     cursor = conn.cursor()
-#     query = "SELECT * FROM billboard_hot_100"
-#     cursor.execute(query)
-#     rows = cursor.fetchall()
-    
-#     for row in rows:
-#         print(row)
-
-
-# import matplotlib.pyplot as plt
-
-
-# def create_or_connect_database(db_file):
-#     conn = sqlite3.connect(db_file)
-#     return conn
-
-# def fetch_data_for_visualization(conn):
-#     """Fetch song and weeks on chart from the database for visualization, ensuring no None values."""
-#     cursor = conn.cursor()
-#     query = "SELECT song, weeks_on_chart FROM billboard_hot_100 WHERE weeks_on_chart IS NOT NULL ORDER BY weeks_on_chart DESC LIMIT 10"
-#     cursor.execute(query)
-#     data = cursor.fetchall()
-#     return data
-
-# def visualize_data(data):
-#     """Generate a bar chart from the fetched data, handling None values."""
-#     songs = [item[0] for item in data if item[1] is not None]  # Ensure no None values in weeks
-#     weeks = [item[1] for item in data if item[1] is not None]  # Ensure no None values in weeks
-
-#     if not weeks:  # Check if the list is empty after filtering
-#         print("No valid data to display.")
-#         return
-
-#     plt.figure(figsize=(10, 8))
-#     plt.barh(songs, weeks, color='skyblue')
-#     plt.xlabel('Weeks on Chart')
-#     plt.ylabel('Songs')
-#     plt.title('Top 10 Songs by Weeks on Billboard Hot 100')
-#     plt.gca().invert_yaxis()  # Reverse the order to have the longest on top
-#     plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
-# def main():
-#     db_file = 'music_data.db'
-#     conn = create_or_connect_database(db_file)
-#     create_billboard_table(conn)
-    
-#     date = "2019-05-11"  # You can adjust this or make it dynamic as needed
-#     start_rank = 1
-#     total_items_fetched = 0
-
-#     while total_items_fetched <= 100:
-#         data = fetch_billboard_data(date, start_rank)
-        
-#         if data:
-#             save_data_to_database(conn, data, date)
-#             print(f"Data saved to database successfully for ranks {start_rank} to {start_rank + 24}.")
-#             total_items_fetched += len(data)
-#             start_rank += 25  # Increment to fetch the next batch
-#         else:
-#             print("No more data fetched or end of data.")
-#             break
-
-#     fetch_and_display_data(conn)  # Optionally display data
-#     conn.close()
-
-
-#     db_file = 'music_data.db'
-#     conn = create_or_connect_database(db_file)
-    
-#     data = fetch_data_for_visualization(conn)
-#     if data:
-#         visualize_data(data)
-#     else:
-#         print("No data available for visualization.")
-
-#     conn.close()
-
-
-# if __name__ == '__main__':
-#     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import requests
-from bs4 import BeautifulSoup
 import sqlite3
+import pandas as pd
 import matplotlib.pyplot as plt
+import json
+import os
 
-def create_or_connect_database(db_file):
-    """ Create or connect to a SQLite database. """
+def create_or_connect_database(db_file='billboard_data.db'):
     conn = sqlite3.connect(db_file)
-    return conn
-
-def setup_database(conn):
-    """ Setup database table with necessary constraints. """
     cursor = conn.cursor()
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS billboard_hot_100 (
+        CREATE TABLE IF NOT EXISTS songs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             rank INTEGER,
-            song TEXT,
-            artist TEXT,
-            UNIQUE(rank) ON CONFLICT IGNORE
+            title TEXT,
+            artist_id INTEGER,
+            last_week INTEGER,
+            peak_position INTEGER,
+            weeks_on_chart INTEGER,
+            UNIQUE(rank, title, artist_id)
+        );
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS artists (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
         );
     ''')
     conn.commit()
+    return conn
 
-def scrape_billboard_data(url):
-    """ Scrape data from Billboard Hot 100 page using Beautiful Soup. """
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    
-    songs = []
-    for entry in soup.find_all('div', attrs={'class': 'o-chart-results-list-row-container'}):
-        rank = entry.find('span', class_='c-label').text.strip()
-        song = entry.find('h3', class_='c-title').text.strip()
-        artist = entry.find('span', class_='c-label__artist').text.strip()
-        songs.append((rank, song, artist))
-    return songs
+def fetch_billboard_data(limit=25, offset=0):
+    url = "https://billboard-api2.p.rapidapi.com/hot-100"
+    headers = {
+        "X-RapidAPI-Key": "4f2775e08emshb476776cc48055bp16752fjsn8b91ce849b8d",
+        "X-RapidAPI-Host": "billboard-api2.p.rapidapi.com"
+    }
+    query = {"date": "2019-05-11", "range": f"{offset+1}-{offset+limit}"}
+    response = requests.get(url, headers=headers, params=query)
+    data = []
+    if response.status_code == 200:
+        content = response.json().get('content', {})
+        for key, item in content.items():
+            try:
+                rank = int(item.get('rank', 0))
+                title = item.get('title', "")
+                artist = item.get('artist', "")
+                last_week = int(item.get('last week', '0').replace('-', '0'))
+                peak_position = int(item.get('peak position', '0').replace('-', '0'))
+                weeks_on_chart = int(item.get('weeks on chart', '0').replace('-', '0'))
+                data.append((rank, title, artist, last_week, peak_position, weeks_on_chart))
+            except ValueError:
+                continue
+    else:
+        print(f"Failed to fetch data, Status Code: {response.status_code}")
+    return data
 
-def save_data_to_database(conn, songs):
-    """ Save scraped data to the database. """
+def save_data_to_database(conn, data):
     cursor = conn.cursor()
-    for rank, song, artist in songs:
+    for record in data:
         cursor.execute('''
-            INSERT INTO billboard_hot_100 (rank, song, artist)
-            VALUES (?, ?, ?)
-        ''', (rank, song, artist))
+            INSERT OR IGNORE INTO artists (name) VALUES (?)
+        ''', (record[2],))
+        cursor.execute('''
+            SELECT id FROM artists WHERE name = ?
+        ''', (record[2],))
+        artist_id = cursor.fetchone()[0]
+        cursor.execute('''
+            INSERT OR IGNORE INTO songs (rank, title, artist_id, last_week, peak_position, weeks_on_chart)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (record[0], record[1], artist_id, record[3], record[4], record[5]))
     conn.commit()
 
-def fetch_and_visualize_data(conn):
-    """ Fetch data from the database and create a visualization. """
+def query_data_and_write_to_file():
+    conn = sqlite3.connect('billboard_data.db')# Connect to the Billboard database
     cursor = conn.cursor()
-    query = "SELECT artist, COUNT(*) as count FROM billboard_hot_100 GROUP BY artist ORDER BY count DESC LIMIT 10"
-    cursor.execute(query)
-    data = cursor.fetchall()
-    artists = [item[0] for item in data]
-    counts = [item[1] for item in data]
-    
-    plt.figure(figsize=(10, 8))
-    plt.barh(artists, counts, color='skyblue')
-    plt.xlabel('Number of Songs')
-    plt.ylabel('Artists')
-    plt.title('Top Artists on Billboard Hot 100')
+    query = """
+    SELECT a.name, COUNT(*) as song_count
+    FROM songs s
+    JOIN artists a ON s.artist_id = a.id
+    GROUP BY a.name
+    ORDER BY song_count DESC
+    """
+    results = cursor.execute(query).fetchall()
+    with open('artist_song_counts.txt', 'w') as file:
+        for result in results:
+            file.write(f"Artist: {result[0]}, Songs on Chart: {result[1]}\n")
+    conn.close()
+
+
+def visualize_data(db_file='billboard_data.db'):
+    conn = sqlite3.connect(db_file)
+    df = pd.read_sql_query("SELECT peak_position, weeks_on_chart, title FROM songs", conn)
+    conn.close()
+
+    top_20 = df.nlargest(20, 'weeks_on_chart').sort_values('weeks_on_chart', ascending=True)
+
+    plt.figure(figsize=(12, 8))
+    plt.scatter(top_20['weeks_on_chart'], top_20['peak_position'], alpha=0.5, color='orange')  # Changed color to orange
+    plt.xlabel('Weeks on Chart')
+    plt.ylabel('Chart Ranking')
+    plt.title('Top 20 Songs by Longevity and Chart Success (May 2019)')
     plt.gca().invert_yaxis()
     plt.show()
 
+    # Second Visualization: Horizontal Bar Chart of the Top 20
+    plt.figure(figsize=(12, 8))
+    plt.barh(top_20['title'], top_20['weeks_on_chart'], color='green')  # Changed color to green
+    plt.xlabel('Weeks on Chart')
+    plt.ylabel('Songs')
+    plt.title('Top 20 Songs by Weeks on Chart (May 2019)')
+    plt.tight_layout()
+    plt.show()
+
+
+
+def reset_state():
+    if os.path.exists('state.json'):
+        os.remove('state.json')
+    if os.path.exists('billboard_data.db'):
+        os.remove('billboard_data.db')
+    print("Reset complete. Ready to start fetching data from scratch.")
+
+def load_state():
+    try:
+        with open('state.json', 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {'total_records': 0, 'offset': 0}
+
+def save_state(state):
+    with open('state.json', 'w') as f:
+        json.dump(state, f)
+
 def main():
-    db_file = 'billboard_data.db'
-    url = 'https://www.billboard.com/charts/hot-100'
-    
-    conn = create_or_connect_database(db_file)
-    setup_database(conn)
-    
-    songs = scrape_billboard_data(url)
-    if songs:
-        save_data_to_database(conn, songs)
-    
-    fetch_and_visualize_data(conn)
+    conn = create_or_connect_database()
+    state = load_state()
+    if state['total_records'] >= 100:
+        print("Resetting after 100 records.")
+        reset_state()
+        conn = create_or_connect_database()
+        state = {'total_records': 0, 'offset': 0}
+
+    data = fetch_billboard_data(limit=25, offset=state['offset'])
+    if data:
+        save_data_to_database(conn, data)
+        state['total_records'] += len(data)
+        state['offset'] += 25
+        save_state(state)
+        print(f"Fetched {len(data)} records, total fetched: {state['total_records']}.")
+        visualize_data()
+        query_data_and_write_to_file()
+    else:
+        print("No data fetched in this run.")
+
     conn.close()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
