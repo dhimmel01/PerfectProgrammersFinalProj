@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import json
 import os
 
-def create_or_connect_database(db_file='billboard_data.db'):
+def create_or_connect_database(db_file='spotify.db'):
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
     cursor.execute('''
@@ -21,7 +21,7 @@ def create_or_connect_database(db_file='billboard_data.db'):
         );
     ''')
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS artists (
+        CREATE TABLE IF NOT EXISTS billboard_artists (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE
         );
@@ -59,10 +59,10 @@ def save_data_to_database(conn, data):
     cursor = conn.cursor()
     for record in data:
         cursor.execute('''
-            INSERT OR IGNORE INTO artists (name) VALUES (?)
+            INSERT OR IGNORE INTO billboard_artists (name) VALUES (?)
         ''', (record[2],))
         cursor.execute('''
-            SELECT id FROM artists WHERE name = ?
+            SELECT id FROM billboard_artists WHERE name = ?
         ''', (record[2],))
         artist_id = cursor.fetchone()[0]
         cursor.execute('''
@@ -72,12 +72,12 @@ def save_data_to_database(conn, data):
     conn.commit()
 
 def query_data_and_write_to_file():
-    conn = sqlite3.connect('billboard_data.db')# Connect to the Billboard database
+    conn = sqlite3.connect('spotify.db')# Connect to the Billboard database
     cursor = conn.cursor()
     query = """
     SELECT a.name, COUNT(*) as song_count
     FROM songs s
-    JOIN artists a ON s.artist_id = a.id
+    JOIN billboard_artists a ON s.artist_id = a.id
     GROUP BY a.name
     ORDER BY song_count DESC
     """
@@ -88,7 +88,7 @@ def query_data_and_write_to_file():
     conn.close()
 
 
-def visualize_data(db_file='billboard_data.db'):
+def visualize_data(db_file='spotify.db'):
     conn = sqlite3.connect(db_file)
     df = pd.read_sql_query("SELECT peak_position, weeks_on_chart, title FROM songs", conn)
     conn.close()
@@ -117,8 +117,8 @@ def visualize_data(db_file='billboard_data.db'):
 def reset_state():
     if os.path.exists('state.json'):
         os.remove('state.json')
-    if os.path.exists('billboard_data.db'):
-        os.remove('billboard_data.db')
+    if os.path.exists('spotify.db'):
+        os.remove('spotify.db')
     print("Reset complete. Ready to start fetching data from scratch.")
 
 def load_state():
