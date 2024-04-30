@@ -9,9 +9,11 @@ def visualize_album_data(db_file):
     FROM albums
     JOIN artists ON albums.artist_id = artists.id
     '''
-
+#Each row in the resulting table contains the release date of an album and the ID of the artist who created it.
 
     albums_with_artists_df = pd.read_sql_query(query, conn)
+    #Takes data from alumb and artist tables
+    #Takes release date from alumbs table, id from artist table
 
     albums_with_artists_df['release_date'] = pd.to_datetime(albums_with_artists_df['release_date'], errors='coerce')
 
@@ -20,7 +22,9 @@ def visualize_album_data(db_file):
 
 
     albums_with_artists_df['release_year'] = albums_with_artists_df['release_date'].dt.year
+    #Creates new DataFrame with the years
     albums_by_year = albums_with_artists_df.groupby('release_year').size()
+    #Group by the year
 
 
     average_albums_per_year = albums_by_year.mean()
