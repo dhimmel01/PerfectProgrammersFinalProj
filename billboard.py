@@ -32,8 +32,7 @@ def create_or_connect_database(db_file='spotify.db'):
 def fetch_billboard_data(limit=25, offset=0):
     url = "https://billboard-api2.p.rapidapi.com/hot-100"
     headers = {
-        "X-RapidAPI-Key": "4f2775e08emshb476776cc48055bp16752fjsn8b91ce849b8d",
-        "X-RapidAPI-Host": "billboard-api2.p.rapidapi.com"
+
     }
     query = {"date": "2019-05-11", "range": f"{offset+1}-{offset+limit}"}
     response = requests.get(url, headers=headers, params=query)
